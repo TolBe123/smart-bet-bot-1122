@@ -1,3 +1,4 @@
+
 import os
 import logging
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
@@ -16,26 +17,26 @@ def main():
         resize_keyboard=True
     )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("recommendations", recommendations))
-    app.add_handler(CommandHandler("bank", bank))
-    app.add_handler(CommandHandler("graph", graph))
-    app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(CommandHandler("placed", placed))
+    app.add_handler(CommandHandler("start", start.start))
+    app.add_handler(CommandHandler("help", help_command.help_command))
+    app.add_handler(CommandHandler("recommendations", recommendations.recommendations))
+    app.add_handler(CommandHandler("bank", bank.bank))
+    app.add_handler(CommandHandler("graph", graph.graph))
+    app.add_handler(CommandHandler("stats", stats.stats))
+    app.add_handler(CommandHandler("placed", placed.placed))
 
     async def handle_buttons(update, context):
         text = update.message.text.strip()
         if text == "💰 Банк":
-            await bank(update, context)
+            await bank.bank(update, context)
         elif text == "📊 График":
-            await graph(update, context)
+            await graph.graph(update, context)
         elif text == "📌 Ставки":
-            await recommendations(update, context)
+            await recommendations.recommendations(update, context)
         elif text == "✅ Сделано":
-            await placed(update, context)
+            await placed.placed(update, context)
         elif text == "📈 Статистика":
-            await stats(update, context)
+            await stats.stats(update, context)
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
 
