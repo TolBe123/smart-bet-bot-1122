@@ -1,50 +1,30 @@
-
 import os
 import json
 import matplotlib.pyplot as plt
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.constants import ParseMode
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import requests
-
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-API_KEY = os.getenv("API_KEY")
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from betting import get_value_bets
 
 BANK_FILE = "bank.txt"
-PLACED_FILE = "placed.txt"
 STATS_FILE = "stats.json"
+PLACED_FILE = "placed.txt"
 
-def get_value_bets():
-    url = f"https://api.the-odds-api.com/v4/sports/soccer_epl/odds?regions=eu&apiKey={API_KEY}"
-    try:
-        res = requests.get(url)
-        matches = res.json()
-        results = []
-        for match in matches:
-            teams = match['home_team'] + " vs " + match['away_team']
-            for bookmaker in match.get('bookmakers', []):
-                for market in bookmaker.get('markets', []):
-                    for outcome in market.get('outcomes', []):
-                        name = outcome['name']
-                        odds = outcome['price']
-                        implied_prob = 1 / odds
-                        value = round((odds * (1 - implied_prob) - 1) * 100, 2)
-                        if value > 0:
-                            results.append({
-                                "match": teams,
-                                "bet": name,
-                                "odds": odds,
-                                "value": value,
-                                "kelly": round(value / (odds - 1), 2)
-                            })
-        return results[:5]
-    except:
-        return []
+def init_files():
+    if not os.path.exists(BANK_FILE):
+        with open(BANK_FILE, "w") as f:
+            f.write("1000")
+    if not os.path.exists(STATS_FILE):
+        with open(STATS_FILE, "w") as f:
+            json.dump([1000], f)
+    if not os.path.exists(PLACED_FILE):
+        with open(PLACED_FILE, "w") as f:
+            pass
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [KeyboardButton("💰 Банк"), KeyboardButton("📈 График")],
-        [KeyboardButton("📋 Сделано"), KeyboardButton("📊 Статистика")],
+        [KeyboardButton("💰 Банк"), KeyboardButton("📝 График")],
+        [KeyboardButton("✅ Сделано"), KeyboardButton("📈 Статистика")],
         [KeyboardButton("📌 Ставки")]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -57,30 +37,22 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     for b in bets:
         msg = (
-            f"🏟 *{b['match']}*\n"
-"
-            f"🎯 {b['bet']}
-"
-            f"📈 {b['odds']}
-"
-            f"📊 {b['value']}%
-"
+            f"*🏟 {b['match']}*\n"
+            f"🎯 {b['bet']}\n"
+            f"📈 {b['odds']}\n"
+            f"📊 {b['value']}%\n"
             f"🎯 Kelly: {b['kelly']}"
         )
         await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        with open(PLACED_FILE, "a") as f:
+            f.write(json.dumps(b) + "\n")
 
 async def bank(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not os.path.exists(BANK_FILE):
-        with open(BANK_FILE, 'w') as f:
-            f.write("1000")
     with open(BANK_FILE) as f:
         bank = f.read()
-    await update.message.reply_text(f"*💰 Текущий банк:* {bank}₽", parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(f"*💰 Текущий банк:* {bank}", parse_mode=ParseMode.MARKDOWN)
 
 async def graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not os.path.exists(STATS_FILE):
-        with open(STATS_FILE, 'w') as f:
-            json.dump([1000], f)
     with open(STATS_FILE) as f:
         data = json.load(f)
     x = list(range(len(data)))
@@ -88,39 +60,53 @@ async def graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     plt.plot(x, y)
     plt.xlabel("Ставки")
     plt.ylabel("Банк")
-    plt.title("Динамика банка")
-    plt.grid(True)
-    plt.savefig("graph.png")
+    plt.title("История банка")
+    plt.savefig("bank_graph.png")
     plt.close()
-    with open("graph.png", "rb") as f:
-        await update.message.reply_photo(f)
+    await update.message.reply_photo(photo=open("bank_graph.png", "rb"))
 
 async def placed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if os.path.exists(PLACED_FILE):
-        with open(PLACED_FILE) as f:
-            bets = f.read()
-    else:
-        bets = "Нет зафиксированных ставок."
-    await update.message.reply_text(bets)
+    if not os.path.exists(PLACED_FILE):
+        await update.message.reply_text("Нет сделанных ставок.")
+        return
+    with open(PLACED_FILE) as f:
+        lines = f.readlines()[-5:]
+    if not lines:
+        await update.message.reply_text("Нет сделанных ставок.")
+        return
+    for line in lines:
+        try:
+            b = json.loads(line.strip())
+            msg = (
+                f"*🏟 {b['match']}*\n"
+                f"🎯 {b['bet']}\n"
+                f"📈 {b['odds']}\n"
+                f"📊 {b['value']}%\n"
+                f"🎯 Kelly: {b['kelly']}"
+            )
+            await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+        except:
+            continue
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not os.path.exists(STATS_FILE):
-        with open(STATS_FILE, 'w') as f:
-            json.dump([1000], f)
     with open(STATS_FILE) as f:
         data = json.load(f)
-    profit = round(data[-1] - 1000, 2)
-    await update.message.reply_text(f"*📊 Прибыль:* {profit}₽", parse_mode=ParseMode.MARKDOWN)
+    change = round(data[-1] - data[0], 2)
+    await update.message.reply_text(f"📈 Прибыль: {change}", parse_mode=ParseMode.MARKDOWN)
 
-def main():
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+if __name__ == "__main__":
+    init_files()
+    TOKEN = os.getenv("BOT_TOKEN")
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("recommendations", recommendations))
     app.add_handler(CommandHandler("bank", bank))
     app.add_handler(CommandHandler("graph", graph))
     app.add_handler(CommandHandler("placed", placed))
     app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(MessageHandler(filters.Regex("💰 Банк"), bank))
+    app.add_handler(MessageHandler(filters.Regex("📝 График"), graph))
+    app.add_handler(MessageHandler(filters.Regex("✅ Сделано"), placed))
+    app.add_handler(MessageHandler(filters.Regex("📈 Статистика"), stats))
+    app.add_handler(MessageHandler(filters.Regex("📌 Ставки"), recommendations))
     app.run_polling()
-
-if __name__ == "__main__":
-    main()
