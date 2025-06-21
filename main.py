@@ -1,7 +1,8 @@
 import os
 import json
 import requests
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ParseMode
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
