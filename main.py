@@ -3,6 +3,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import requests
 
@@ -55,25 +56,31 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No value bets available.")
         return
     for b in bets:
-        msg = f"🏟 {b['match']}
-🎯 {b['bet']}
-📈 {b['odds']}
-📊 {b['value']}%
-🎯 Kelly: {b['kelly']}"
-        await update.message.reply_text(msg)
+        msg = (
+            f"*🏟 {b['match']}*
+"
+            f"🎯 {b['bet']}
+"
+            f"📈 {b['odds']}
+"
+            f"📊 {b['value']}%
+"
+            f"🎯 Kelly: {b['kelly']}"
+        )
+        await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
 async def bank(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if os.path.exists(BANK_FILE):
-        with open(BANK_FILE) as f:
-            bank = f.read()
-    else:
-        bank = "1000"
-    await update.message.reply_text(f"💰 Текущий банк: {bank}₽")
+    if not os.path.exists(BANK_FILE):
+        with open(BANK_FILE, 'w') as f:
+            f.write("1000")
+    with open(BANK_FILE) as f:
+        bank = f.read()
+    await update.message.reply_text(f"*💰 Текущий банк:* {bank}₽", parse_mode=ParseMode.MARKDOWN)
 
 async def graph(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists(STATS_FILE):
-        await update.message.reply_text("Недостаточно данных для графика.")
-        return
+        with open(STATS_FILE, 'w') as f:
+            json.dump([1000], f)
     with open(STATS_FILE) as f:
         data = json.load(f)
     x = list(range(len(data)))
@@ -98,12 +105,12 @@ async def placed(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists(STATS_FILE):
-        await update.message.reply_text("Нет статистики.")
-        return
+        with open(STATS_FILE, 'w') as f:
+            json.dump([1000], f)
     with open(STATS_FILE) as f:
         data = json.load(f)
     profit = round(data[-1] - 1000, 2)
-    await update.message.reply_text(f"📊 Прибыль: {profit}₽")
+    await update.message.reply_text(f"*📊 Прибыль:* {profit}₽", parse_mode=ParseMode.MARKDOWN)
 
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()

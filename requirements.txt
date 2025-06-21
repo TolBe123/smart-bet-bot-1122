@@ -1,3 +1,3 @@
-python-telegram-bot
-matplotlib
-requests
+python-telegram-bot>=20.3
+matplotlib>=3.5
+requests>=2.25
