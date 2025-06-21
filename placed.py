@@ -16,6 +16,6 @@ async def placed(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     messages = [f"{i+1}) {b['match']} — {b['bet']} @ {b['odd']} ({b['stake']}₽)" for i, b in enumerate(data[-5:])]
-    await update.message.reply_text("📌 Recent bets:
+    await update.message.reply_text("📌 Recent bets:\n"
 " + "
 ".join(messages))
