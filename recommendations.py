@@ -1,4 +1,3 @@
-
 import os
 import json
 import requests
@@ -42,11 +41,11 @@ def win_ratio(form: str):
 
 async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = {
-        "X-RapidAPI-Key": API_KEY,
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+        "x-apisports-key": API_KEY
     }
 
-    url = "https://api-football-v1.p.rapidapi.com/v3/odds?region=eu&bookmaker=1"
+    # Пример: Англия - Премьер-лига (league=39), сезон 2024
+    url = "https://v3.football.api-sports.io/odds?league=39&season=2024&bookmaker=1"
 
     try:
         response = requests.get(url, headers=headers)
@@ -61,15 +60,15 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
             teams = f"{home} vs {away}"
 
             try:
-                form_home = match["teams"]["home"]["form"]
-                form_away = match["teams"]["away"]["form"]
+                form_home = match["teams"]["home"].get("form", "")
+                form_away = match["teams"]["away"].get("form", "")
             except:
                 continue
 
             win_home = win_ratio(form_home)
             win_away = win_ratio(form_away)
             draw_chance = 1.0 - win_home - win_away
-            draw_chance = max(0.15, min(draw_chance, 0.35))  # ограничим вменяемыми рамками
+            draw_chance = max(0.15, min(draw_chance, 0.35))
 
             bets = match["bookmakers"][0]["bets"][0]["values"]
 
@@ -91,34 +90,4 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 kelly_frac = kelly(p, b)
 
                 if value_score > 0 and kelly_frac > 0:
-                    stake = round(get_bank() * kelly_frac, 2)
-                    implied = implied_prob(odd)
-
-                    text = (
-    f"🏆 {league}\n"
-    f"⚽ {teams}\n"
-    f"📌 Bet: {outcome_name}\n"
-    f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
-    f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
-    f"✅ Value: {value_score*100:.2f}%\n"
-    f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
-)
-
-                    messages.append(text)
-
-                    save_placed({
-                        "match": teams,
-                        "bet": outcome_name,
-                        "odd": odd,
-                        "stake": stake,
-                        "date": datetime.now().strftime("%Y-%m-%d")
-                    })
-
-                    break
-
-        if messages:
-            await update.message.reply_text("\n\n".join(messages))
-        else:
-            await update.message.reply_text("No value bets found.")
-    except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+                    stake = round(get_bank() * kelly_frac,
