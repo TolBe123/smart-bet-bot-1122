@@ -57,7 +57,7 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     for b in bets:
         msg = (
-            f"*🏟 {b['match']}*
+            f"🏟 *{b['match']}*\n"
 "
             f"🎯 {b['bet']}
 "
