@@ -95,20 +95,14 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     implied = implied_prob(odd)
 
                     text = (
-                        f"🏆 {league}
-"
-                        f"⚽ {teams}
-"
-                        f"📌 Bet: {outcome_name}
-"
-                        f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%
-"
-                        f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})
-"
-                        f"✅ Value: {value_score*100:.2f}%
-"
-                        f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
-                    )
+    f"🏆 {league}\n"
+    f"⚽ {teams}\n"
+    f"📌 Bet: {outcome_name}\n"
+    f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
+    f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
+    f"✅ Value: {value_score*100:.2f}%\n"
+    f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
+)
 
                     messages.append(text)
 
