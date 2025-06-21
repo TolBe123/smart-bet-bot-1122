@@ -104,9 +104,9 @@ async def placed(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("банк", bank))
-    app.add_handler(CommandHandler("график", graph))
-    app.add_handler(CommandHandler("поставил", placed))
+    app.add_handler(CommandHandler("bank", bank))
+    app.add_handler(CommandHandler("graph", graph))
+    app.add_handler(CommandHandler("placed", placed))
     app.run_polling()
 
 if __name__ == "__main__":
