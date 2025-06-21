@@ -1,4 +1,14 @@
 
+from telegram import ReplyKeyboardMarkup
+
+# Add buttons to /start
+def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [['/bank', '/graph'], ['/placed', '/stats']]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    update.message.reply_text("Welcome to SmartBet Assistant! Choose an option:", reply_markup=reply_markup)
+
+
+
 import logging
 from telegram import Update, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
@@ -59,11 +69,7 @@ def plot_bank_history():
     plt.close()
     return image_path
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != AUTHORIZED_USER_ID:
-        return
-    await update.message.reply_text("🎯 Добро пожаловать в ИИ-помощник ставок. Команды: /банк, /график, /поставил")
-
+async 
 async def bank(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != AUTHORIZED_USER_ID:
         return
@@ -111,3 +117,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+from telegram import ParseMode
+
+def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        with open("recommendations.json", "r", encoding="utf-8") as f:
+            recs = json.load(f)
+        for r in recs:
+            msg = (
+                f"⚽ *{r['match']}*\n"
+                f"📌 Ставка: *{r['bet']}*\n"
+                f"💰 Коэффициент: *{r['odds']}*\n"
+                f"📈 Value: *+{r['value']}%*\n"
+                f"🧮 Рекомендую поставить: *{r['kelly']}%* от банка"
+            )
+            update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+    except Exception as e:
+        update.message.reply_text("Ошибка при получении рекомендаций.")
