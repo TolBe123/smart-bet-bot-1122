@@ -44,7 +44,6 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "x-apisports-key": API_KEY
     }
 
-    # Пример: Англия - Премьер-лига (league=39), сезон 2024
     url = "https://v3.football.api-sports.io/odds?league=39&season=2024&bookmaker=1"
 
     try:
@@ -59,11 +58,8 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
             away = match["teams"]["away"]["name"]
             teams = f"{home} vs {away}"
 
-            try:
-                form_home = match["teams"]["home"].get("form", "")
-                form_away = match["teams"]["away"].get("form", "")
-            except:
-                continue
+            form_home = match["teams"]["home"].get("form", "")
+            form_away = match["teams"]["away"].get("form", "")
 
             win_home = win_ratio(form_home)
             win_away = win_ratio(form_away)
@@ -90,4 +86,34 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 kelly_frac = kelly(p, b)
 
                 if value_score > 0 and kelly_frac > 0:
-                    stake = round(get_bank() * kelly_frac,
+                    stake = round(get_bank() * kelly_frac, 2)
+                    implied = implied_prob(odd)
+
+                    text = (
+                        f"🏆 {league}\n"
+                        f"⚽ {teams}\n"
+                        f"📌 Bet: {outcome_name}\n"
+                        f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
+                        f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
+                        f"✅ Value: {value_score*100:.2f}%\n"
+                        f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
+                    )
+
+                    messages.append(text)
+
+                    save_placed({
+                        "match": teams,
+                        "bet": outcome_name,
+                        "odd": odd,
+                        "stake": stake,
+                        "date": datetime.now().strftime("%Y-%m-%d")
+                    })
+
+                    break
+
+        if messages:
+            await update.message.reply_text("\n\n".join(messages))
+        else:
+            await update.message.reply_text("No value bets found.")
+    except Exception as e:
+        await update.message.reply_text(f"Error: {e}")
