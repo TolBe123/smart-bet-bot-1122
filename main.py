@@ -1,12 +1,13 @@
 
 import os
 import logging
+import asyncio
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from telegram.error import Conflict
 from telegram import ReplyKeyboardMarkup
 import start, help_command, recommendations, bank, graph, stats, placed
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 def main():
@@ -40,12 +41,19 @@ def main():
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
 
-    try:
-        app.run_polling()
-    except Conflict:
-        logging.warning("⚠️ Bot is already running in another process. Skipping second instance.")
-    except Exception as e:
-        logging.error(f"Unexpected error: {e}")
+    async def run_bot():
+        try:
+            await app.initialize()
+            await app.start()
+            await app.updater.start_polling()
+            logging.info("✅ Bot started successfully with polling.")
+            await asyncio.Event().wait()
+        except Conflict:
+            logging.warning("⚠️ Conflict: Bot is already running elsewhere. Only one instance can poll updates.")
+        except Exception as e:
+            logging.error(f"❌ Unexpected error: {e}")
+
+    asyncio.run(run_bot())
 
 if __name__ == "__main__":
     main()
