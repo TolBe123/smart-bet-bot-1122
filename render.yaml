@@ -1,8 +1,0 @@
-
-services:
-  - type: web
-    name: telegram-bet-bot
-    env: python
-    buildCommand: ""
-    startCommand: "python smart_bet_telegram_bot.py"
-    plan: free
