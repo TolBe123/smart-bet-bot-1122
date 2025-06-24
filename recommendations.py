@@ -88,10 +88,11 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Отладочный вывод
                 print(f"Checking: {teams} | Bet: {outcome_name} | Value: {value_score:.3f} | Kelly: {kelly_frac:.3f}")
 
-                if value_score >= 0.03 and kelly_frac >= 0.01:
+                if value_score >= 0.01 and kelly_frac >= 0.005:
                     stake = round(get_bank() * kelly_frac, 2)
                     implied = implied_prob(odd)
 
+                    
                     text = (
                         f"🏆 {league}\n"
                         f"⚽ {teams}\n"
