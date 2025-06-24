@@ -5,19 +5,21 @@ from live_command import live
 from flashscore_ws import start_ws
 import threading
 
-TOKEN = os.getenv("BOT_TOKEN") or "your_token_here"
+# Получаем токен из переменной окружения
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or "your_token_here"
 
+# Создание Telegram приложения
 app = Application.builder().token(TOKEN).build()
 
-# Команды
+# Подключаем команды
 app.add_handler(CommandHandler("recommendations", recommendations))
 app.add_handler(CommandHandler("live", live))
 
-# Запуск Flashscore WebSocket в фоне
+# Запуск Flashscore WebSocket в отдельном потоке
 t = threading.Thread(target=start_ws, daemon=True)
 t.start()
 
-# Запуск бота
+# Запуск Telegram-бота
 if __name__ == '__main__':
     print("Bot is running...")
     app.run_polling()
