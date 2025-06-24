@@ -1,72 +1,49 @@
-import os
-import json
-import requests
-from datetime import datetime
-from telegram import Update
-from telegram.ext import ContextTypes
-
-API_KEY = os.getenv("API_FOOTBALL_KEY")
-BANK_FILE = "data/bank.json"
-PLACED_FILE = "data/placed.json"
-
-def get_bank():
-    if os.path.exists(BANK_FILE):
-        with open(BANK_FILE, "r") as f:
-            return float(f.read())
-    return 1000.0
-
-def save_placed(bet):
-    data = []
-    if os.path.exists(PLACED_FILE):
-        with open(PLACED_FILE, "r") as f:
-            data = json.load(f)
-    data.append(bet)
-    with open(PLACED_FILE, "w") as f:
-        json.dump(data, f)
-
-def implied_prob(odd):
-    return 1 / float(odd) if float(odd) > 0 else 0
-
-def kelly(p, b):
-    q = 1 - p
-    return max((b * p - q) / b, 0)
-
-def win_ratio(form: str):
-    form = form.upper()
-    if not form:
-        return 0.33
-    total = len(form)
-    wins = form.count('W')
-    return wins / total if total > 0 else 0.33
-
 async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
     headers = {
         "x-apisports-key": API_KEY
     }
 
-    url = "https://v3.football.api-sports.io/odds?league=39&season=2024&bookmaker=1"
+    # Получаем матчи на сегодня
+    today = datetime.today().strftime('%Y-%m-%d')
+    fixtures_url = f"https://v3.football.api-sports.io/fixtures?date={today}"
 
     try:
-        response = requests.get(url, headers=headers)
-        matches = response.json().get("response", [])[:5]
+        resp = requests.get(fixtures_url, headers=headers)
+        data = resp.json().get("response", [])
+
+        if not data:
+            await update.message.reply_text("⚠️ No matches found for today.")
+            return
 
         messages = []
 
-        for match in matches:
-            league = match["league"]["name"]
-            home = match["teams"]["home"]["name"]
-            away = match["teams"]["away"]["name"]
+        for game in data[:10]:  # Ограничим до 10 матчей
+            fixture_id = game["fixture"]["id"]
+            league = game["league"]["name"]
+            home = game["teams"]["home"]["name"]
+            away = game["teams"]["away"]["name"]
             teams = f"{home} vs {away}"
 
-            form_home = match["teams"]["home"].get("form", "")
-            form_away = match["teams"]["away"].get("form", "")
+            # Получаем коэффициенты
+            odds_url = f"https://v3.football.api-sports.io/odds?fixture={fixture_id}&bookmaker=1"
+            odds_resp = requests.get(odds_url, headers=headers)
+            odds_data = odds_resp.json().get("response", [])
+
+            if not odds_data:
+                continue
+
+            try:
+                bets = odds_data[0]["bookmakers"][0]["bets"][0]["values"]
+            except (IndexError, KeyError):
+                continue
+
+            form_home = game["teams"]["home"].get("form", "")
+            form_away = game["teams"]["away"].get("form", "")
 
             win_home = win_ratio(form_home)
             win_away = win_ratio(form_away)
             draw_chance = 1.0 - win_home - win_away
             draw_chance = max(0.15, min(draw_chance, 0.35))
-
-            bets = match["bookmakers"][0]["bets"][0]["values"]
 
             for outcome in bets:
                 outcome_name = outcome["value"]
@@ -94,7 +71,7 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"⚽ {teams}\n"
                         f"📌 Bet: {outcome_name}\n"
                         f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
-                        f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
+                        f"📈 Model probability: {p*100:.1f}% (based on form)\n"
                         f"✅ Value: {value_score*100:.2f}%\n"
                         f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
                     )
@@ -114,6 +91,7 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if messages:
             await update.message.reply_text("\n\n".join(messages))
         else:
-            await update.message.reply_text("No value bets found.")
+            await update.message.reply_text("🟡 No value bets found today.")
+
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        await update.message.reply_text(f"❌ Error: {e}")
