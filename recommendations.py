@@ -85,7 +85,7 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 value_score = (p * odd) - 1
                 kelly_frac = kelly(p, b)
 
-                if value_score > 0 and kelly_frac > 0:
+                 if value_score >= 0.03 and kelly_frac >= 0.01:
                     stake = round(get_bank() * kelly_frac, 2)
                     implied = implied_prob(odd)
 
