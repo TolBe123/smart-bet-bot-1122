@@ -85,7 +85,10 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 value_score = (p * odd) - 1
                 kelly_frac = kelly(p, b)
 
-                 if value_score >= 0.03 and kelly_frac >= 0.01:
+                # Отладочный вывод
+                print(f"Checking: {teams} | Bet: {outcome_name} | Value: {value_score:.3f} | Kelly: {kelly_frac:.3f}")
+
+                if value_score >= 0.03 and kelly_frac >= 0.01:
                     stake = round(get_bank() * kelly_frac, 2)
                     implied = implied_prob(odd)
 
