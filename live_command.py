@@ -1,26 +1,17 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from flashscore_ws import live_matches, format_match
+from recommendations import fetch_live_value_bets
 import asyncio
 
-async def live(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await asyncio.sleep(1)  # подстраховка, если WebSocket не успел стартовать
+async def live_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🔍 Live value betting started...")
 
-    if not live_matches:
-        await update.message.reply_text("🔴 No live matches currently tracked.")
-        return
+    async def send_value(event, outcome, odd, value):
+        text = f"📊 Value bet found:\n" \
+               f"🏟 {event.get('name', 'Unknown')}\n" \
+               f"🧾 Outcome: {outcome.get('name', 'N/A')}\n" \
+               f"💸 Odd: {odd}\n" \
+               f"📈 Value: {round(value * 100, 2)}%"
+        await update.message.reply_text(text)
 
-    messages = []
-    for match_id, data in live_matches.items():
-        if "score" in data and ":" in data["score"]:
-            try:
-                home_goals, away_goals = map(int, data["score"].split(":"))
-                if home_goals + away_goals >= 1:
-                    messages.append("⚽ " + format_match(data))
-            except:
-                continue
-
-    if messages:
-        await update.message.reply_text("\n\n".join(messages))
-    else:
-        await update.message.reply_text("🟡 No high-interest live matches right now.")
+    asyncio.create_task(fetch_live_value_bets(send_value))
