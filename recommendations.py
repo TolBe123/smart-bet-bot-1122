@@ -44,80 +44,85 @@ async def recommendations(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "x-apisports-key": API_KEY
     }
 
-    url = "https://v3.football.api-sports.io/odds?league=39&season=2024&bookmaker=1"
+    # Расширенный URL (без фильтрации по лиге)
+    url = "https://v3.football.api-sports.io/odds?season=2024&bookmaker=1"
 
     try:
         response = requests.get(url, headers=headers)
-        matches = response.json().get("response", [])[:5]
+        matches = response.json().get("response", [])[:15]  # до 15 матчей
+
+        if not matches:
+            await update.message.reply_text("⚠️ API ответ пуст. Возможно, закончились матчи или ключ недействителен.")
+            return
 
         messages = []
 
         for match in matches:
-            league = match["league"]["name"]
-            home = match["teams"]["home"]["name"]
-            away = match["teams"]["away"]["name"]
-            teams = f"{home} vs {away}"
+            try:
+                league = match["league"]["name"]
+                home = match["teams"]["home"]["name"]
+                away = match["teams"]["away"]["name"]
+                teams = f"{home} vs {away}"
 
-            form_home = match["teams"]["home"].get("form", "")
-            form_away = match["teams"]["away"].get("form", "")
+                form_home = match["teams"]["home"].get("form", "")
+                form_away = match["teams"]["away"].get("form", "")
 
-            win_home = win_ratio(form_home)
-            win_away = win_ratio(form_away)
-            draw_chance = 1.0 - win_home - win_away
-            draw_chance = max(0.15, min(draw_chance, 0.35))
+                win_home = win_ratio(form_home)
+                win_away = win_ratio(form_away)
+                draw_chance = 1.0 - win_home - win_away
+                draw_chance = max(0.15, min(draw_chance, 0.35))
 
-            bets = match["bookmakers"][0]["bets"][0]["values"]
+                bets = match["bookmakers"][0]["bets"][0]["values"]
 
-            for outcome in bets:
-                outcome_name = outcome["value"]
-                odd = float(outcome["odd"])
-                b = odd - 1
+                for outcome in bets:
+                    outcome_name = outcome["value"]
+                    odd = float(outcome["odd"])
+                    b = odd - 1
 
-                if outcome_name == "Home":
-                    p = win_home
-                elif outcome_name == "Away":
-                    p = win_away
-                elif outcome_name == "Draw":
-                    p = draw_chance
-                else:
-                    continue
+                    if outcome_name == "Home":
+                        p = win_home
+                    elif outcome_name == "Away":
+                        p = win_away
+                    elif outcome_name == "Draw":
+                        p = draw_chance
+                    else:
+                        continue
 
-                value_score = (p * odd) - 1
-                kelly_frac = kelly(p, b)
+                    value_score = (p * odd) - 1
+                    kelly_frac = kelly(p, b)
 
-                # Отладочный вывод
-                print(f"Checking: {teams} | Bet: {outcome_name} | Value: {value_score:.3f} | Kelly: {kelly_frac:.3f}")
+                    if value_score >= 0.001 and kelly_frac >= 0.001:
+                        stake = round(get_bank() * kelly_frac, 2)
+                        implied = implied_prob(odd)
 
-                if value_score >= 0.01 and kelly_frac >= 0.005:
-                    stake = round(get_bank() * kelly_frac, 2)
-                    implied = implied_prob(odd)
+                        text = (
+                            f"🏆 {league}\n"
+                            f"⚽ {teams}\n"
+                            f"📌 Bet: {outcome_name}\n"
+                            f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
+                            f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
+                            f"✅ Value: {value_score*100:.2f}%\n"
+                            f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
+                        )
 
-                    
-                    text = (
-                        f"🏆 {league}\n"
-                        f"⚽ {teams}\n"
-                        f"📌 Bet: {outcome_name}\n"
-                        f"📊 Odds: {odd:.2f} → Implied: {implied*100:.1f}%\n"
-                        f"📈 Model probability: {p*100:.1f}% (based on form: {form_home} / {form_away})\n"
-                        f"✅ Value: {value_score*100:.2f}%\n"
-                        f"🎯 Kelly stake: {kelly_frac*100:.2f}% → {stake}₽"
-                    )
+                        messages.append(text)
 
-                    messages.append(text)
+                        save_placed({
+                            "match": teams,
+                            "bet": outcome_name,
+                            "odd": odd,
+                            "stake": stake,
+                            "date": datetime.now().strftime("%Y-%m-%d")
+                        })
 
-                    save_placed({
-                        "match": teams,
-                        "bet": outcome_name,
-                        "odd": odd,
-                        "stake": stake,
-                        "date": datetime.now().strftime("%Y-%m-%d")
-                    })
-
-                    break
+                        break
+            except Exception as inner:
+                continue  # пропускаем ошибочный матч
 
         if messages:
             await update.message.reply_text("\n\n".join(messages))
         else:
-            await update.message.reply_text("No value bets found.")
+            await update.message.reply_text("⚠️ Матчи получены, но ни одна ставка не прошла фильтр value.")
+
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
+        await update.message.reply_text(f"❌ Ошибка при получении данных: {e}")
