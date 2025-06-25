@@ -23,3 +23,5 @@ t.start()
 if __name__ == '__main__':
     print("Bot is running...")
     app.run_polling()
+if __name__ == '__main__':
+    application.run_polling(drop_pending_updates=True)
